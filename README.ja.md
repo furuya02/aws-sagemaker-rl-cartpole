@@ -53,10 +53,15 @@ pip install -r scripts/requirements.txt
 
 ```bash
 cd cdk
-pnpm exec cdk bootstrap   # 初回のみ
-pnpm exec cdk deploy
+pnpm exec cdk bootstrap                              # 初回のみ
+pnpm exec cdk deploy AwsSagemakerRlCartpoleBaseStack
 cd ..
 ```
+
+`AwsSagemakerRlCartpoleBaseStack` は永続的な基盤スタック (S3 + IAM のみ、
+月額ほぼゼロ)。本プロジェクトは BaseStack (永続) と ModelStack
+(学習のたびに作られる成果物) の 2 スタックに分かれており、モデルを
+差し替えても永続リソースに触らない構造にしています。
 
 このステップで作られるリソース名:
 
@@ -94,13 +99,15 @@ python scripts/launch_training.py \
 
 ```bash
 cd cdk
-pnpm exec cdk deploy -c model_data_url=<ステップ3のS3 URI>
+pnpm exec cdk deploy AwsSagemakerRlCartpoleModelStack -c model_data_url=<ステップ3のS3 URI>
 cd ..
 ```
 
-`SageMaker::Model` と `SageMaker::EndpointConfig` が登録されます（どちらもメタデータのみで無料）。
-実際の `Endpoint`（時間課金リソース）は **CDK では作成しません**。
-スクリプトで起停することで、推論しない時間の課金をゼロにできます。
+`SageMaker::Model` と `SageMaker::EndpointConfig` を別スタックとして追加します
+（どちらもメタデータのみで無料）。ModelStack は CloudFormation の export / import
+経由で BaseStack の SageMaker 実行ロールを参照します。実際の `Endpoint`（時間
+課金リソース）は **CDK では作成しません**。スクリプトで起停することで、
+推論しない時間の課金をゼロにできます。
 
 出力を控えます:
 - `CartPoleEndpointConfigName`
@@ -133,7 +140,19 @@ python scripts/stop_endpoint.py --endpoint-name cartpole-endpoint
 
 ```bash
 cd cdk
-pnpm exec cdk destroy
+pnpm exec cdk destroy --all -c model_data_url=placeholder
+cd ..
+```
+
+`-c model_data_url=placeholder` を渡すのは、CDK が destroy 時に
+ModelStack をアプリグラフで認識できるようにするためです。URL の値は削除処理では
+使われないので、空でなければ何でも構いません。
+
+ModelStack 未デプロイで BaseStack だけを削除したい場合:
+
+```bash
+cd cdk
+pnpm exec cdk destroy AwsSagemakerRlCartpoleBaseStack
 cd ..
 ```
 

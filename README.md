@@ -56,10 +56,15 @@ pip install -r scripts/requirements.txt
 
 ```bash
 cd cdk
-pnpm exec cdk bootstrap   # first time only
-pnpm exec cdk deploy
+pnpm exec cdk bootstrap                              # first time only
+pnpm exec cdk deploy AwsSagemakerRlCartpoleBaseStack
 cd ..
 ```
+
+`AwsSagemakerRlCartpoleBaseStack` is the permanent-infrastructure stack
+(S3 + IAM only; near-zero monthly cost). The project is split into two stacks
+— BaseStack (permanent) and ModelStack (per-training artifact) — so that
+updating a trained model never touches the permanent resources.
 
 Resource names produced by this step:
 
@@ -97,13 +102,15 @@ On completion, record the `Model artifact S3 URI` printed to stdout
 
 ```bash
 cd cdk
-pnpm exec cdk deploy -c model_data_url=<s3 URI from step 3>
+pnpm exec cdk deploy AwsSagemakerRlCartpoleModelStack -c model_data_url=<s3 URI from step 3>
 cd ..
 ```
 
-Adds `SageMaker::Model` and `SageMaker::EndpointConfig` (both free metadata).
-The actual `Endpoint` is **not** created here — it is started/stopped by scripts
-so hourly billing can be paused when inference is not in use.
+This deploys a separate stack that adds `SageMaker::Model` and `SageMaker::EndpointConfig`
+(both free metadata). ModelStack references the SageMaker execution role from
+BaseStack via a CloudFormation export/import. The actual `Endpoint` is **not**
+created here — it is started/stopped by scripts so hourly billing can be paused
+when inference is not in use.
 
 Output to record:
 - `CartPoleEndpointConfigName`
@@ -136,7 +143,19 @@ Steps 5–7 can be repeated anytime — Model and EndpointConfig stay in place f
 
 ```bash
 cd cdk
-pnpm exec cdk destroy
+pnpm exec cdk destroy --all -c model_data_url=placeholder
+cd ..
+```
+
+The `-c model_data_url=placeholder` is required so CDK can see ModelStack in
+the app graph during destroy. Any non-empty value works — the URL isn't
+actually used for deletion.
+
+To remove only BaseStack (when ModelStack is not deployed):
+
+```bash
+cd cdk
+pnpm exec cdk destroy AwsSagemakerRlCartpoleBaseStack
 cd ..
 ```
 

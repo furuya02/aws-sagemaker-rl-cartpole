@@ -1,5 +1,6 @@
 boto3>=1.34
 sagemaker>=2.220,<3.0
 gymnasium[classic-control]==0.29.1
+stable-baselines3==2.3.2
 moviepy>=1.0.3
 imageio-ffmpeg>=0.4.9

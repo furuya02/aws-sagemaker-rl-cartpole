@@ -95,7 +95,27 @@ python scripts/launch_training.py \
 完了時に標準出力に表示される `Model artifact S3 URI` を控えます
 (例: `s3://<ArtifactsBucketName>/training-output/<job-name>/output/model.tar.gz`)。
 
-## 4. Model と EndpointConfig を登録
+Training Job は `model.tar.gz` の中に中間チェックポイント
+(`checkpoints/cartpole_ppo_*_steps.zip`) も保存しています
+（`total-timesteps/5` 環境ステップごと + 学習前の step 0 スナップショット）。
+これは次のステップで使用します。
+
+## 4. チェックポイント比較動画を録画（任意だが推奨）
+
+学習済み `model.tar.gz` をローカルに DL して各チェックポイントをロードし、
+1 エピソードずつ録画して **方策が学習ステップとともにどう改善していくか** を可視化します。
+このステップは Endpoint を **使わない** ので追加の課金はゼロ。
+
+```bash
+python scripts/record_checkpoints.py \
+  --model-data-url <ステップ3のS3 URI>
+```
+
+出力: `./videos/checkpoints/cp_000000-episode-0.mp4` 〜 `cp_050000-episode-0.mp4`
+（チェックポイントごとに 1 本）。step 0 動画は未学習方策（即倒れ）、
+step 50,000 動画は完成方策（500 ステップ直立）を示します。
+
+## 5. Model と EndpointConfig を登録
 
 ```bash
 cd cdk
@@ -112,7 +132,7 @@ cd ..
 出力を控えます:
 - `CartPoleEndpointConfigName`
 
-## 5. Endpoint を起動（ここから時間課金開始）
+## 6. Endpoint を起動（ここから時間課金開始）
 
 ```bash
 python scripts/start_endpoint.py --endpoint-config-name <CartPoleEndpointConfigName>
@@ -120,7 +140,7 @@ python scripts/start_endpoint.py --endpoint-config-name <CartPoleEndpointConfigN
 
 デフォルトの Endpoint 名: `cartpole-endpoint`（`--endpoint-name` で上書き可）。
 
-## 6. 推論を実行
+## 7. 推論を実行
 
 ```bash
 python scripts/invoke_endpoint.py --endpoint-name cartpole-endpoint
@@ -140,15 +160,15 @@ python scripts/invoke_endpoint.py \
 `pygame` / `moviepy` / `imageio-ffmpeg` に依存しますが、`scripts/requirements.txt`
 に記載済みなので `pip install -r scripts/requirements.txt` で自動的に揃います。
 
-## 7. Endpoint を停止（ここで時間課金停止）
+## 8. Endpoint を停止（ここで時間課金停止）
 
 ```bash
 python scripts/stop_endpoint.py --endpoint-name cartpole-endpoint
 ```
 
-ステップ 5〜7 は何度でも繰り返せます。Model と EndpointConfig は無料で保持されます。
+ステップ 6〜8 は何度でも繰り返せます。Model と EndpointConfig は無料で保持されます。
 
-## 8. 完全クリーンアップ（リソースを丸ごと消す時のみ）
+## 9. 完全クリーンアップ（リソースを丸ごと消す時のみ）
 
 ```bash
 cd cdk

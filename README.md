@@ -98,7 +98,26 @@ python scripts/launch_training.py \
 On completion, record the `Model artifact S3 URI` printed to stdout
 (e.g. `s3://<ArtifactsBucketName>/training-output/<job-name>/output/model.tar.gz`).
 
-## 4. Register Model and EndpointConfig
+The Training Job saves intermediate PPO checkpoints under
+`checkpoints/cartpole_ppo_*_steps.zip` inside `model.tar.gz` (every `total-timesteps/5`
+env steps, plus the untrained step-0 snapshot). These are used in the next step.
+
+## 4. Record checkpoint comparison videos (optional but recommended)
+
+Download the trained `model.tar.gz`, load each checkpoint locally, and record one
+episode per checkpoint to visualize how the policy improves across training steps.
+This step does **not** use the Endpoint, so it costs nothing.
+
+```bash
+python scripts/record_checkpoints.py \
+  --model-data-url <s3 URI from step 3>
+```
+
+Output: `./videos/checkpoints/cp_000000-episode-0.mp4` … `cp_050000-episode-0.mp4`
+(one MP4 per checkpoint). The 0-step video shows the untrained policy (instantly falls),
+the 50,000-step video shows the final policy (500 steps upright).
+
+## 5. Register Model and EndpointConfig
 
 ```bash
 cd cdk
@@ -115,7 +134,7 @@ when inference is not in use.
 Output to record:
 - `CartPoleEndpointConfigName`
 
-## 5. Start the endpoint (hourly billing starts here)
+## 6. Start the endpoint (hourly billing starts here)
 
 ```bash
 python scripts/start_endpoint.py --endpoint-config-name <CartPoleEndpointConfigName>
@@ -123,7 +142,7 @@ python scripts/start_endpoint.py --endpoint-config-name <CartPoleEndpointConfigN
 
 Default endpoint name: `cartpole-endpoint`. Override with `--endpoint-name`.
 
-## 6. Run inference
+## 7. Run inference
 
 ```bash
 python scripts/invoke_endpoint.py --endpoint-name cartpole-endpoint
@@ -144,15 +163,15 @@ Requires `pygame` / `moviepy` / `imageio-ffmpeg` (already listed in
 `scripts/requirements.txt`, so `pip install -r scripts/requirements.txt`
 pulls them in automatically).
 
-## 7. Stop the endpoint (hourly billing stops here)
+## 8. Stop the endpoint (hourly billing stops here)
 
 ```bash
 python scripts/stop_endpoint.py --endpoint-name cartpole-endpoint
 ```
 
-Steps 5–7 can be repeated anytime — Model and EndpointConfig stay in place for free.
+Steps 6–8 can be repeated anytime — Model and EndpointConfig stay in place for free.
 
-## 8. Full clean up (when finished for good)
+## 9. Full clean up (when finished for good)
 
 ```bash
 cd cdk

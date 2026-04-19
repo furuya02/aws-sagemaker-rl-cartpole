@@ -6,6 +6,7 @@ from pathlib import Path
 
 import gymnasium as gym
 from stable_baselines3 import PPO
+from stable_baselines3.common.callbacks import CheckpointCallback
 
 
 def parse_args() -> argparse.Namespace:
@@ -25,13 +26,31 @@ def main() -> None:
 
     training_env: gym.Env = gym.make(args.env_id)
     ppo_model: PPO = PPO("MlpPolicy", training_env, verbose=1)
-    ppo_model.learn(total_timesteps=args.total_timesteps)
 
     model_output_dir: Path = Path(args.model_dir)
     model_output_dir.mkdir(parents=True, exist_ok=True)
+    checkpoint_dir: Path = model_output_dir / "checkpoints"
+    checkpoint_dir.mkdir(exist_ok=True)
+
+    # Save the untrained (step 0) model so that the very first video shows
+    # the random baseline alongside later checkpoints.
+    initial_checkpoint_path: Path = checkpoint_dir / "cartpole_ppo_0_steps.zip"
+    ppo_model.save(str(initial_checkpoint_path))
+    print(f"[train] Saved initial (untrained) checkpoint to {initial_checkpoint_path}")
+
+    # Save a checkpoint every total_timesteps/5 env steps -> roughly 5 intermediate saves.
+    save_freq: int = max(1, args.total_timesteps // 5)
+    checkpoint_cb: CheckpointCallback = CheckpointCallback(
+        save_freq=save_freq,
+        save_path=str(checkpoint_dir),
+        name_prefix="cartpole_ppo",
+    )
+
+    ppo_model.learn(total_timesteps=args.total_timesteps, callback=checkpoint_cb)
+
     model_artifact_path: Path = model_output_dir / "cartpole_ppo.zip"
     ppo_model.save(str(model_artifact_path))
-    print(f"[train] Saved model to {model_artifact_path}")
+    print(f"[train] Saved final model to {model_artifact_path}")
 
     source_dir: Path = Path(__file__).parent
     inference_code_dir: Path = model_output_dir / "code"

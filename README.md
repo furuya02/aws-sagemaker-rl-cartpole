@@ -131,6 +131,19 @@ python scripts/invoke_endpoint.py --endpoint-name cartpole-endpoint
 
 Each episode prints `steps` / `reward` (CartPole-v1 caps at 500 steps per episode).
 
+### Optional: record MP4 videos of each episode
+
+```bash
+python scripts/invoke_endpoint.py \
+  --endpoint-name cartpole-endpoint \
+  --record-video
+```
+
+Saves one MP4 per episode to `./videos/cartpole-episode-*.mp4`.
+Requires `pygame` / `moviepy` / `imageio-ffmpeg` (already listed in
+`scripts/requirements.txt`, so `pip install -r scripts/requirements.txt`
+pulls them in automatically).
+
 ## 7. Stop the endpoint (hourly billing stops here)
 
 ```bash

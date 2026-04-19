@@ -128,6 +128,18 @@ python scripts/invoke_endpoint.py --endpoint-name cartpole-endpoint
 
 各エピソードごとに `steps` / `reward` が表示されます (CartPole-v1 は 1 エピソード最大 500 ステップ)。
 
+### オプション: 各エピソードを MP4 動画として録画
+
+```bash
+python scripts/invoke_endpoint.py \
+  --endpoint-name cartpole-endpoint \
+  --record-video
+```
+
+`./videos/cartpole-episode-*.mp4` に 1 エピソードあたり 1 本の MP4 が出力されます。
+`pygame` / `moviepy` / `imageio-ffmpeg` に依存しますが、`scripts/requirements.txt`
+に記載済みなので `pip install -r scripts/requirements.txt` で自動的に揃います。
+
 ## 7. Endpoint を停止（ここで時間課金停止）
 
 ```bash

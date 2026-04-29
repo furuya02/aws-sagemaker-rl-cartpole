@@ -11,7 +11,7 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--total-timesteps", type=int, default=50_000)
+    parser.add_argument("--total-timesteps", type=int, default=30_000)
     parser.add_argument("--env-id", type=str, default="CartPole-v1")
     parser.add_argument(
         "--model-dir",
@@ -38,8 +38,12 @@ def main() -> None:
     ppo_model.save(str(initial_checkpoint_path))
     print(f"[train] Saved initial (untrained) checkpoint to {initial_checkpoint_path}")
 
-    # Save a checkpoint every total_timesteps/5 env steps -> roughly 5 intermediate saves.
-    save_freq: int = max(1, args.total_timesteps // 5)
+    # Save a checkpoint every total_timesteps/3 env steps -> 3 intermediate saves.
+    # Combined with the initial 0-step checkpoint above, this yields 4 total
+    # checkpoints (e.g. 0 / 10k / 20k / 30k for default 30,000 timesteps),
+    # which is the exact set used by scripts/record_checkpoints.py to produce
+    # the 4-video learning-progression comparison.
+    save_freq: int = max(1, args.total_timesteps // 3)
     checkpoint_cb: CheckpointCallback = CheckpointCallback(
         save_freq=save_freq,
         save_path=str(checkpoint_dir),

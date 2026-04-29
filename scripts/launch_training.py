@@ -12,7 +12,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--role-arn", required=True, help="SageMakerExecutionRoleArn from CDK output")
     parser.add_argument("--bucket", required=True, help="ArtifactsBucketName from CDK output")
     parser.add_argument("--region", default="ap-northeast-1")
-    parser.add_argument("--total-timesteps", type=int, default=50_000)
+    parser.add_argument("--total-timesteps", type=int, default=30_000)
     parser.add_argument("--instance-type", default="ml.m5.large")
     return parser.parse_args()
 

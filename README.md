@@ -99,8 +99,9 @@ On completion, record the `Model artifact S3 URI` printed to stdout
 (e.g. `s3://<ArtifactsBucketName>/training-output/<job-name>/output/model.tar.gz`).
 
 The Training Job saves intermediate PPO checkpoints under
-`checkpoints/cartpole_ppo_*_steps.zip` inside `model.tar.gz` (every `total-timesteps/5`
-env steps, plus the untrained step-0 snapshot). These are used in the next step.
+`checkpoints/cartpole_ppo_*_steps.zip` inside `model.tar.gz` (every `total-timesteps/3`
+env steps, plus the untrained step-0 snapshot, for a total of 4 checkpoints).
+These are used in the next step.
 
 ## 4. Record checkpoint comparison videos (optional but recommended)
 
@@ -113,9 +114,21 @@ python scripts/record_checkpoints.py \
   --model-data-url <s3 URI from step 3>
 ```
 
-Output: `./videos/checkpoints/cp_000000-episode-0.mp4` … `cp_050000-episode-0.mp4`
-(one MP4 per checkpoint). The 0-step video shows the untrained policy (instantly falls),
-the 50,000-step video shows the final policy (500 steps upright).
+Output: `./videos/checkpoints/cp_000000-episode-0.mp4` … `cp_030000-episode-0.mp4`
+(one MP4 per checkpoint, 4 in total with the default settings). The 0-step video
+shows the untrained policy (instantly falls), the 30,000-step video shows the
+final policy (500 steps upright).
+
+Optionally, you can compose all four checkpoint videos into a single 2x2 grid
+comparison video for easier visual comparison:
+
+```bash
+python scripts/make_comparison_video.py
+```
+
+Output: `./videos/comparison.mp4` (each panel labeled with its training step;
+failed runs show a red overlay with "✗ FAILED", successful runs show a green
+"✓ SUCCESS" overlay).
 
 ## 5. Register Model and EndpointConfig
 
@@ -208,7 +221,7 @@ Stable-Baselines3 `PPO` with `MlpPolicy`:
 
 - On-policy actor-critic, clipped surrogate objective (PPO)
 - Default policy & value networks: 2 hidden layers × 64 units each, `tanh` activation
-- Trained for 50,000 environment steps (override with `--total-timesteps`)
+- Trained for 30,000 environment steps (override with `--total-timesteps`)
 - Single CPU instance (`ml.m5.large`); no GPU required
 
 ### Inference contract
@@ -230,10 +243,15 @@ The SageMaker training job uploads a single archive to S3:
 
 ```
 model.tar.gz
-├── cartpole_ppo.zip   # Stable-Baselines3 PPO model archive (PyTorch state + SB3 config)
+├── cartpole_ppo.zip                  # Stable-Baselines3 PPO final model archive
+├── checkpoints/                      # Intermediate checkpoints (4 in total: 0/10k/20k/30k)
+│   ├── cartpole_ppo_0_steps.zip
+│   ├── cartpole_ppo_10000_steps.zip
+│   ├── cartpole_ppo_20000_steps.zip
+│   └── cartpole_ppo_30000_steps.zip
 └── code/
-    ├── inference.py     # SageMaker model_fn / input_fn / predict_fn / output_fn
-    └── requirements.txt # gymnasium, stable-baselines3
+    ├── inference.py                  # SageMaker model_fn / input_fn / predict_fn / output_fn
+    └── requirements.txt              # gymnasium, stable-baselines3
 ```
 
 When the endpoint starts, the PyTorch inference DLC:
@@ -246,11 +264,11 @@ When the endpoint starts, the PyTorch inference DLC:
    `input_fn` → `predict_fn` → `output_fn`
 
 ### Verified behavior
-With the default 50,000 training steps:
+With the default 30,000 training steps:
 
 | Metric | Result |
 |---|---|
-| Training time (Training Job) | ~4 minutes (220 billable seconds) |
+| Training time (Training Job) | ~3 minutes (~185 billable seconds) |
 | Reward in evaluation (5 episodes, seeds 0–4) | **500 / 500 in every episode** |
 | Endpoint cold start (`start_endpoint.py`) | 4–6 minutes |
 | Endpoint deletion (`stop_endpoint.py`) | 1–2 minutes |

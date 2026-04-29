@@ -97,7 +97,7 @@ python scripts/launch_training.py \
 
 Training Job は `model.tar.gz` の中に中間チェックポイント
 (`checkpoints/cartpole_ppo_*_steps.zip`) も保存しています
-（`total-timesteps/5` 環境ステップごと + 学習前の step 0 スナップショット）。
+（`total-timesteps/3` 環境ステップごと + 学習前の step 0 スナップショット、合計 4 本）。
 これは次のステップで使用します。
 
 ## 4. チェックポイント比較動画を録画（任意だが推奨）
@@ -111,9 +111,19 @@ python scripts/record_checkpoints.py \
   --model-data-url <ステップ3のS3 URI>
 ```
 
-出力: `./videos/checkpoints/cp_000000-episode-0.mp4` 〜 `cp_050000-episode-0.mp4`
-（チェックポイントごとに 1 本）。step 0 動画は未学習方策（即倒れ）、
-step 50,000 動画は完成方策（500 ステップ直立）を示します。
+出力: `./videos/checkpoints/cp_000000-episode-0.mp4` 〜 `cp_030000-episode-0.mp4`
+（チェックポイントごとに 1 本、デフォルト設定で計 4 本）。step 0 動画は
+未学習方策（即倒れ）、step 30,000 動画は完成方策（500 ステップ直立）を示します。
+
+さらに、これら 4 本を 2x2 グリッドに合成した 1 本の比較動画を作成する
+スクリプトも用意しています:
+
+```bash
+python scripts/make_comparison_video.py
+```
+
+出力: `./videos/comparison.mp4`（各パネルに学習ステップ数のラベル、
+失敗時は赤背景の「✗ FAILED」、成功時は緑背景の「✓ SUCCESS」オーバーレイ表示）。
 
 ## 5. Model と EndpointConfig を登録
 
@@ -204,7 +214,7 @@ Stable-Baselines3 `PPO` + `MlpPolicy`:
 
 - On-policy な Actor-Critic、Clipped surrogate objective (PPO)
 - デフォルトの方策・価値関数ネットワーク: 隠れ層 2 段 × 64 ユニット、`tanh` 活性化
-- 5 万ステップ分の環境とのやり取りでトレーニング（`--total-timesteps` で変更可）
+- 3 万ステップ分の環境とのやり取りでトレーニング（`--total-timesteps` で変更可）
 - CPU インスタンス 1 台 (`ml.m5.large`)、GPU 不要
 
 ### 推論の入出力
@@ -225,10 +235,15 @@ SageMaker Training Job が S3 にアップロードするアーカイブ:
 
 ```
 model.tar.gz
-├── cartpole_ppo.zip   # Stable-Baselines3 PPO モデル本体 (PyTorch state + SB3 config)
+├── cartpole_ppo.zip                  # Stable-Baselines3 PPO 最終モデル
+├── checkpoints/                      # 中間チェックポイント (デフォルト計 4 本: 0/10k/20k/30k)
+│   ├── cartpole_ppo_0_steps.zip
+│   ├── cartpole_ppo_10000_steps.zip
+│   ├── cartpole_ppo_20000_steps.zip
+│   └── cartpole_ppo_30000_steps.zip
 └── code/
-    ├── inference.py     # SageMaker model_fn / input_fn / predict_fn / output_fn
-    └── requirements.txt # gymnasium, stable-baselines3
+    ├── inference.py                  # SageMaker model_fn / input_fn / predict_fn / output_fn
+    └── requirements.txt              # gymnasium, stable-baselines3
 ```
 
 Endpoint 起動時に PyTorch 推論 DLC が以下を実行:
@@ -239,11 +254,11 @@ Endpoint 起動時に PyTorch 推論 DLC が以下を実行:
 4. 起動時に `model_fn("/opt/ml/model")` を 1 回呼び、以降の各リクエストは `input_fn` → `predict_fn` → `output_fn` の順で処理
 
 ### 動作確認した結果
-デフォルトの 5 万ステップでトレーニングした場合:
+デフォルトの 3 万ステップでトレーニングした場合:
 
 | 指標 | 結果 |
 |---|---|
-| トレーニング時間 (Training Job) | 約 4 分（課金秒数 220 秒） |
+| トレーニング時間 (Training Job) | 約 3 分（課金秒数 約 185 秒） |
 | 評価エピソードの報酬 (seed 0〜4 の 5 試行) | **5/5 で 500 / 500 を達成** |
 | Endpoint コールドスタート (`start_endpoint.py`) | 約 4〜6 分 |
 | Endpoint 削除 (`stop_endpoint.py`) | 約 1〜2 分 |
